@@ -1,6 +1,12 @@
 cmake_minimum_required(VERSION 3.16)
 
-set(CMAKE_CXX_STANDARD  17)
+# CMake 4 removed compatibility with projects that request CMake < 3.5.
+# Some third-party libraries (for example gl2d) still use an older minimum.
+set(CMAKE_POLICY_VERSION_MINIMUM 3.5 CACHE STRING "" FORCE)
+
+project(mygame)
+
+set(CMAKE_CXX_STANDARD 17)
 
 # ************************
 # Set this to ON instead of OFF to ship the game
@@ -9,20 +15,22 @@ set(CMAKE_CXX_STANDARD  17)
 set(PRODUCTION_BUILD OFF CACHE BOOL "Make this a production build" FORCE)
 # delete the "out" folder after changing if VSCode doesn't recognize the change
 
-
-if(MSVC) 
-set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Release>:Release>")
-set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
-add_compile_options(/arch:AVX2) #make sure SIMD optimizations take place
+# SIMD flags. This has to come AFTER project(): MSVC, MINGW and the other
+# compiler-detection variables only exist once CMake has tested the compiler,
+# so a check before project() would always fall through to the GCC/Clang flags.
+#   - MSVC and clang-cl accept /arch:AVX2.
+#   - GCC/Clang accept -mavx2 -mfma, but only when targeting x86; those flags
+#     do not exist on other architectures (ARM, Apple Silicon, ...), so they
+#     are skipped there instead of failing the build.
+if(MSVC)
+	set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Release>:Release>")
+	set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+	add_compile_options(/arch:AVX2) # make sure SIMD optimizations take place
+elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(AMD64|x86_64|i[3-6]86)")
+	add_compile_options(-mavx2 -mfma) # make sure SIMD optimizations take place
 else()
-	add_compile_options(-mavx2 -mfma) # make sure SIMD optimizations take place, but on linux and other platforms
+	message(STATUS "No AVX2 flags for ${CMAKE_SYSTEM_PROCESSOR} - skipping SIMD optimizations")
 endif()
-
-project(mygame)
-
-# CMake 4 removed compatibility with projects that request CMake < 3.5.
-# Some third-party libraries (for example gl2d) still use an older minimum.
-set(CMAKE_POLICY_VERSION_MINIMUM 3.5 CACHE STRING "" FORCE)
 
 # ************************
 # Third-party libraries
