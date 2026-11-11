@@ -1,6 +1,7 @@
 /out
 bin/
 build/
+thirdparty/
 
 /.vs
 .idea/
